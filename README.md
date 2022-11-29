@@ -37,7 +37,7 @@ wandb
 # Run
 
 ```bash
-python main.py --yaml_config ./configs/capsule.yaml
+python main.py --yaml_config ./configs/bottle.yaml
 ```
 
 ## Demo
@@ -46,7 +46,7 @@ python main.py --yaml_config ./configs/capsule.yaml
 voila "[demo] model inference.ipynb" --port ${port} --Voila.ip ${ip}
 ```
 
-![](https://github.com/TooTouch/MemSeg/blob/main/assets/memseg.gif)
+![](./assets/memseg.gif)
 
 # Results
 

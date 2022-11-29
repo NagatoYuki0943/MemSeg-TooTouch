@@ -11,15 +11,15 @@ def create_dataset(
 ):
     dataset = MemSegDataset(
         datadir                = datadir,
-        target                 = target, 
+        target                 = target,
         train                  = train,
         to_memory              = to_memory,
         resize                 = resize,
-        texture_source_dir     = texture_source_dir, 
+        texture_source_dir     = texture_source_dir,
         structure_grid_size    = structure_grid_size,
         transparency_range     = transparency_range,
-        perlin_scale           = perlin_scale, 
-        min_perlin_scale       = min_perlin_scale, 
+        perlin_scale           = perlin_scale,
+        min_perlin_scale       = min_perlin_scale,
         perlin_noise_threshold = perlin_noise_threshold,
     )
 

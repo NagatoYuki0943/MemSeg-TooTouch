@@ -17,12 +17,12 @@ class MSFFBlock(nn.Module):
     def forward(self, x):
         x_conv = self.conv1(x)
         x_att = self.attn(x)
-        
+
         x = x_conv * x_att
         x = self.conv2(x)
         return x
 
-    
+
 class MSFF(nn.Module):
     def __init__(self):
         super(MSFF, self).__init__()
@@ -31,7 +31,7 @@ class MSFF(nn.Module):
         self.blk3 = MSFFBlock(512)
 
         self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-        
+
         self.upconv32 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
             nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=1)
@@ -43,8 +43,8 @@ class MSFF(nn.Module):
 
     def forward(self, features):
         # features = [level1, level2, level3]
-        f1, f2, f3 = features 
-        
+        f1, f2, f3 = features
+
         # MSFF Module
         f1_k = self.blk1(f1)
         f2_k = self.blk2(f2)
@@ -54,14 +54,14 @@ class MSFF(nn.Module):
         f1_f = f1_k + self.upconv21(f2_f)
 
         # spatial attention
-        
-        # mask 
+
+        # mask
         m3 = f3[:,256:,...].mean(dim=1, keepdim=True)
         m2 = f2[:,128:,...].mean(dim=1, keepdim=True) * self.upsample(m3)
         m1 = f1[:,64:,...].mean(dim=1, keepdim=True) * self.upsample(m2)
-        
+
         f1_out = f1_f * m1
         f2_out = f2_f * m2
         f3_out = f3_k * m3
-        
+
         return [f1_out, f2_out, f3_out]

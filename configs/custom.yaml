@@ -2,9 +2,9 @@ EXP_NAME: MemSeg
 SEED: 42
 
 DATASET:
-  datadir: './datasets/MVTec'
+  datadir: './datasets'
   texture_source_dir: './datasets/dtd/images'
-  target: 'capsule'
+  target: 'custom'
   resize: !!python/tuple
     - 256 # height
     - 256 # width

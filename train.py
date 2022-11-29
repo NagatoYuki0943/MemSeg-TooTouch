@@ -1,6 +1,6 @@
 import time
 import json
-import os 
+import os
 import wandb
 import logging
 from collections import OrderedDict
@@ -10,6 +10,7 @@ import torch.nn.functional as F
 import numpy as np
 from typing import List
 from anomalib.utils.metrics import AUPRO, AUROC
+
 
 _logger = logging.getLogger('train')
 
@@ -31,20 +32,19 @@ class AverageMeter:
         self.avg = self.sum / self.count
 
 
-
-def training(model, trainloader, validloader, criterion, optimizer, scheduler, num_training_steps: int = 1000, loss_weights: List[float] = [0.6, 0.4], 
-             log_interval: int = 1, eval_interval: int = 1, savedir: str = None, use_wandb: bool = False, device: str ='cpu') -> dict:   
+def training(model, trainloader, validloader, criterion, optimizer, scheduler, num_training_steps: int = 1000, loss_weights: List[float] = [0.6, 0.4],
+             log_interval: int = 1, eval_interval: int = 1, savedir: str = None, use_wandb: bool = False, device: str ='cpu') -> dict:
 
     batch_time_m = AverageMeter()
     data_time_m = AverageMeter()
     losses_m = AverageMeter()
     l1_losses_m = AverageMeter()
     focal_losses_m = AverageMeter()
-    
+
     # criterion
     l1_criterion, focal_criterion = criterion
     l1_weight, focal_weight = loss_weights
-    
+
     # set train mode
     model.train()
 
@@ -72,7 +72,7 @@ def training(model, trainloader, validloader, criterion, optimizer, scheduler, n
             loss = (l1_weight * l1_loss) + (focal_weight * focal_loss)
 
             loss.backward()
-            
+
             # update weight
             optimizer.step()
             optimizer.zero_grad()
@@ -81,7 +81,7 @@ def training(model, trainloader, validloader, criterion, optimizer, scheduler, n
             l1_losses_m.update(l1_loss.item())
             focal_losses_m.update(focal_loss.item())
             losses_m.update(loss.item())
-            
+
             batch_time_m.update(time.time() - end)
 
             # wandb
@@ -93,8 +93,8 @@ def training(model, trainloader, validloader, criterion, optimizer, scheduler, n
                     'train_loss':losses_m.val
                 },
                 step=step)
-            
-            if (step+1) % log_interval == 0 or step == 0: 
+
+            if (step+1) % log_interval == 0 or step == 0:
                 _logger.info('TRAIN [{:>4d}/{}] '
                             'Loss: {loss.val:>6.4f} ({loss.avg:>6.4f}) '
                             'L1 Loss: {l1_loss.val:>6.4f} ({l1_loss.avg:>6.4f}) '
@@ -102,8 +102,8 @@ def training(model, trainloader, validloader, criterion, optimizer, scheduler, n
                             'LR: {lr:.3e} '
                             'Time: {batch_time.val:.3f}s, {rate:>7.2f}/s ({batch_time.avg:.3f}s, {rate_avg:>7.2f}/s) '
                             'Data: {data_time.val:.3f} ({data_time.avg:.3f})'.format(
-                            step+1, num_training_steps, 
-                            loss       = losses_m, 
+                            step+1, num_training_steps,
+                            loss       = losses_m,
                             l1_loss    = l1_losses_m,
                             focal_loss = focal_losses_m,
                             lr         = optimizer.param_groups[0]['lr'],
@@ -112,8 +112,7 @@ def training(model, trainloader, validloader, criterion, optimizer, scheduler, n
                             rate_avg   = inputs.size(0) / batch_time_m.avg,
                             data_time  = data_time_m))
 
-
-            if ((step+1) % eval_interval == 0 and step != 0) or (step+1) == num_training_steps: 
+            if ((step+1) % eval_interval == 0 and step != 0) or (step+1) == num_training_steps:
                 eval_metrics = evaluate(model, validloader, criterion, log_interval, device)
                 model.train()
 
@@ -132,7 +131,7 @@ def training(model, trainloader, validloader, criterion, optimizer, scheduler, n
 
                     # save best model
                     torch.save(model.state_dict(), os.path.join(savedir, f'best_model.pt'))
-                    
+
                     _logger.info('Best Score {0:.3%} to {1:.3%}'.format(best_score, np.mean(list(eval_metrics.values()))))
 
                     best_score = np.mean(list(eval_metrics.values()))
@@ -160,10 +159,7 @@ def training(model, trainloader, validloader, criterion, optimizer, scheduler, n
     state.update(eval_log)
     json.dump(state, open(os.path.join(savedir, 'latest_score.json'),'w'), indent='\t')
 
-    
-    
 
-        
 def evaluate(model, dataloader, criterion, log_interval, device='cpu'):
     auroc_image_metric = AUROC(num_classes=1, pos_label=1)
     auroc_pixel_metric = AUROC(num_classes=1, pos_label=1)
@@ -173,7 +169,7 @@ def evaluate(model, dataloader, criterion, log_interval, device='cpu'):
     with torch.no_grad():
         for idx, (inputs, masks, targets) in enumerate(dataloader):
             inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device)
-            
+
             # predict
             outputs = model(inputs)
             outputs = F.softmax(outputs, dim=1)
@@ -181,27 +177,29 @@ def evaluate(model, dataloader, criterion, log_interval, device='cpu'):
 
             # update metrics
             auroc_image_metric.update(
-                preds  = anomaly_score.cpu(), 
+                preds  = anomaly_score.cpu(),
                 target = targets.cpu()
             )
-            auroc_pixel_metric.update(
-                preds  = outputs[:,1,:].cpu(),
-                target = masks.cpu()
-            )
-            aupro_pixel_metric.update(
-                preds   = outputs[:,1,:].cpu(),
-                target  = masks.cpu()
-            ) 
+            # 不计算mask,自己的图片没有mask
+            # auroc_pixel_metric.update(
+            #     preds  = outputs[:,1,:].cpu(),
+            #     target = masks.cpu()
+            # )
+            # aupro_pixel_metric.update(
+            #     preds   = outputs[:,1,:].cpu(),
+            #     target  = masks.cpu()
+            # )
 
-    # metrics    
+    # metrics
     metrics = {
         'AUROC-image':auroc_image_metric.compute().item(),
-        'AUROC-pixel':auroc_pixel_metric.compute().item(),
-        'AUPRO-pixel':aupro_pixel_metric.compute().item()
-
+        # 'AUROC-pixel':auroc_pixel_metric.compute().item(),
+        # 'AUPRO-pixel':aupro_pixel_metric.compute().item()
     }
 
-    _logger.info('TEST: AUROC-image: %.3f%% | AUROC-pixel: %.3f%% | AUPRO-pixel: %.3f%%' % 
-                (metrics['AUROC-image'], metrics['AUROC-pixel'], metrics['AUPRO-pixel']))
+    # _logger.info('TEST: AUROC-image: %.3f%% | AUROC-pixel: %.3f%% | AUPRO-pixel: %.3f%%' %
+    #             (metrics['AUROC-image'], metrics['AUROC-pixel'], metrics['AUPRO-pixel']))
+    _logger.info('TEST: AUROC-image: %.3f%%' %
+                (metrics['AUROC-image']))
 
     return metrics

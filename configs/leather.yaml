@@ -2,8 +2,8 @@ EXP_NAME: MemSeg
 SEED: 42
 
 DATASET:
-  datadir: '/datasets/MVTec'
-  texture_source_dir: '/datasets/dtd/images'
+  datadir: './datasets/MVTec'
+  texture_source_dir: './datasets/dtd/images'
   target: 'leather'
   resize: !!python/tuple
     - 256 # height
@@ -33,7 +33,7 @@ TRAIN:
   focal_weight: 0.4
   focal_alpha: null
   focal_gamma: 4
-  use_wandb: True
+  use_wandb: False
 
 OPTIMIZER:
   lr: 0.003

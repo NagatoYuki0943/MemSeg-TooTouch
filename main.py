@@ -34,7 +34,7 @@ def run(cfg):
     savedir = os.path.join(cfg['RESULT']['savedir'], cfg['EXP_NAME'])
     os.makedirs(savedir, exist_ok=True)
 
-    
+
     # wandb
     if cfg['TRAIN']['use_wandb']:
         wandb.init(name=cfg['EXP_NAME'], project='MemSeg', config=cfg)
@@ -42,44 +42,44 @@ def run(cfg):
     # build datasets
     trainset = create_dataset(
         datadir                = cfg['DATASET']['datadir'],
-        target                 = cfg['DATASET']['target'], 
+        target                 = cfg['DATASET']['target'],
         train                  = True,
         resize                 = cfg['DATASET']['resize'],
         texture_source_dir     = cfg['DATASET']['texture_source_dir'],
         structure_grid_size    = cfg['DATASET']['structure_grid_size'],
         transparency_range     = cfg['DATASET']['transparency_range'],
-        perlin_scale           = cfg['DATASET']['perlin_scale'], 
-        min_perlin_scale       = cfg['DATASET']['min_perlin_scale'], 
+        perlin_scale           = cfg['DATASET']['perlin_scale'],
+        min_perlin_scale       = cfg['DATASET']['min_perlin_scale'],
         perlin_noise_threshold = cfg['DATASET']['perlin_noise_threshold']
     )
 
     memoryset = create_dataset(
         datadir                = cfg['DATASET']['datadir'],
-        target                 = cfg['DATASET']['target'], 
+        target                 = cfg['DATASET']['target'],
         train                  = True,
         to_memory              = True,
         resize                 = cfg['DATASET']['resize'],
         texture_source_dir     = cfg['DATASET']['texture_source_dir'],
         structure_grid_size    = cfg['DATASET']['structure_grid_size'],
         transparency_range     = cfg['DATASET']['transparency_range'],
-        perlin_scale           = cfg['DATASET']['perlin_scale'], 
-        min_perlin_scale       = cfg['DATASET']['min_perlin_scale'], 
+        perlin_scale           = cfg['DATASET']['perlin_scale'],
+        min_perlin_scale       = cfg['DATASET']['min_perlin_scale'],
         perlin_noise_threshold = cfg['DATASET']['perlin_noise_threshold']
     )
 
     testset = create_dataset(
         datadir                = cfg['DATASET']['datadir'],
-        target                 = cfg['DATASET']['target'], 
+        target                 = cfg['DATASET']['target'],
         train                  = False,
         resize                 = cfg['DATASET']['resize'],
         texture_source_dir     = cfg['DATASET']['texture_source_dir'],
         structure_grid_size    = cfg['DATASET']['structure_grid_size'],
         transparency_range     = cfg['DATASET']['transparency_range'],
-        perlin_scale           = cfg['DATASET']['perlin_scale'], 
-        min_perlin_scale       = cfg['DATASET']['min_perlin_scale'], 
+        perlin_scale           = cfg['DATASET']['perlin_scale'],
+        min_perlin_scale       = cfg['DATASET']['min_perlin_scale'],
         perlin_noise_threshold = cfg['DATASET']['perlin_noise_threshold']
     )
-    
+
     # build dataloader
     trainloader = create_dataloader(
         dataset     = trainset,
@@ -87,7 +87,7 @@ def run(cfg):
         batch_size  = cfg['DATALOADER']['batch_size'],
         num_workers = cfg['DATALOADER']['num_workers']
     )
-    
+
     testloader = create_dataloader(
         dataset     = testset,
         train       = False,
@@ -97,12 +97,12 @@ def run(cfg):
 
 
     # build feature extractor
-    feature_extractor = feature_extractor = create_model(
-        cfg['MODEL']['feature_extractor_name'], 
-        pretrained    = True, 
+    feature_extractor = create_model(
+        cfg['MODEL']['feature_extractor_name'],
+        pretrained    = True,
         features_only = True
     ).to(device)
-    ## freeze weight of layer1,2,3
+    ## freeze weight of layer1,2,3 for resnet
     for l in ['layer1','layer2','layer3']:
         for p in feature_extractor[l].parameters():
             p.requires_grad = False
@@ -127,19 +127,19 @@ def run(cfg):
     # Set training
     l1_criterion = nn.L1Loss()
     f_criterion = FocalLoss(
-        gamma = cfg['TRAIN']['focal_gamma'], 
+        gamma = cfg['TRAIN']['focal_gamma'],
         alpha = cfg['TRAIN']['focal_alpha']
     )
 
     optimizer = torch.optim.AdamW(
-        params       = filter(lambda p: p.requires_grad, model.parameters()), 
-        lr           = cfg['OPTIMIZER']['lr'], 
+        params       = filter(lambda p: p.requires_grad, model.parameters()),
+        lr           = cfg['OPTIMIZER']['lr'],
         weight_decay = cfg['OPTIMIZER']['weight_decay']
     )
 
     if cfg['SCHEDULER']['use_scheduler']:
         scheduler = CosineAnnealingWarmupRestarts(
-            optimizer, 
+            optimizer,
             first_cycle_steps = cfg['TRAIN']['num_training_steps'],
             max_lr = cfg['OPTIMIZER']['lr'],
             min_lr = cfg['SCHEDULER']['min_lr'],
@@ -150,11 +150,11 @@ def run(cfg):
 
     # Fitting model
     training(
-        model              = model, 
-        num_training_steps = cfg['TRAIN']['num_training_steps'], 
-        trainloader        = trainloader, 
-        validloader        = testloader, 
-        criterion          = [l1_criterion, f_criterion], 
+        model              = model,
+        num_training_steps = cfg['TRAIN']['num_training_steps'],
+        trainloader        = trainloader,
+        validloader        = testloader,
+        criterion          = [l1_criterion, f_criterion],
         loss_weights       = [cfg['TRAIN']['l1_weight'], cfg['TRAIN']['focal_weight']],
         optimizer          = optimizer,
         scheduler          = scheduler,
@@ -169,7 +169,7 @@ def run(cfg):
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Fake News Detection - Task1')
-    parser.add_argument('--yaml_config', type=str, default=None, help='exp config file')    
+    parser.add_argument('--yaml_config', type=str, default=None, help='exp config file')
 
     args = parser.parse_args()
 
