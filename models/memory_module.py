@@ -1,12 +1,16 @@
 import torch
+from torch import nn
 import torch.nn.functional as F
+from torch.utils.data import Dataset
 
 import numpy as np
 from typing import List
 
 
 class MemoryBank:
-    def __init__(self, normal_dataset, nb_memory_sample: int = 30, device='cpu'):
+    def __init__(self, normal_dataset: Dataset, nb_memory_sample: int = 30, device='cpu'):
+        # super().__init__()
+
         self.device = device
 
         # memory bank
@@ -19,6 +23,7 @@ class MemoryBank:
         self.nb_memory_sample = nb_memory_sample
 
 
+    @torch.jit.ignore
     def update(self, feature_extractor):
         feature_extractor.eval()
 
@@ -57,7 +62,7 @@ class MemoryBank:
                     input     = torch.repeat_interleave(features_b.unsqueeze(0), repeats=self.nb_memory_sample, dim=0),
                     target    = self.memory_information[level],
                     reduction ='none'
-                ).mean(dim=[1,2,3])
+                ).mean(dim=[1, 2, 3])
 
                 # sum loss
                 diff_bank[b_idx] += diff
@@ -65,7 +70,7 @@ class MemoryBank:
         return diff_bank
 
 
-    def select(self, features: List[torch.Tensor]) -> torch.Tensor:
+    def forward(self, features: List[torch.Tensor]) -> torch.Tensor:
         # calculate difference between features and normal features of memory bank
         diff_bank = self._calc_diff(features=features)
 

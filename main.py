@@ -34,6 +34,8 @@ def run(cfg):
     savedir = os.path.join(cfg['RESULT']['savedir'], cfg['EXP_NAME'])
     os.makedirs(savedir, exist_ok=True)
 
+    # save configs
+    yaml.dump(cfg, open(os.path.join(savedir, "config.yaml"), 'w', encoding='utf-8'))
 
     # wandb
     if cfg['TRAIN']['use_wandb']:
@@ -102,10 +104,12 @@ def run(cfg):
         pretrained    = True,
         features_only = True
     ).to(device)
-    ## freeze weight of layer1,2,3 for resnet
-    for l in ['layer1','layer2','layer3']:
-        for p in feature_extractor[l].parameters():
-            p.requires_grad = False
+    if "resnet" in cfg['MODEL']['feature_extractor_name']:
+        print("freeze resnet layer1,2,3.")
+        ## freeze weight of layer1,2,3 for resnet
+        for l in ['conv1', 'bn1', 'layer1', 'layer2', 'layer3']: # add conv1 and bn1
+            for p in feature_extractor[l].parameters():
+                p.requires_grad = False
 
     # build memory bank
     memory_bank = MemoryBank(
