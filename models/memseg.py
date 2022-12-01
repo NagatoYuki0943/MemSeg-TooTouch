@@ -5,10 +5,10 @@ from .memory_module import MemoryBank
 
 
 class MemSeg(nn.Module):
-    def __init__(self, memory_bank, feature_extractor: nn.Module):
+    def __init__(self, feature_extractor: nn.Module):
         super().__init__()
 
-        self.memory_bank = memory_bank
+        self.memory_bank = MemoryBank()
         self.feature_extractor = feature_extractor
         self.msff = MSFF()
         self.decoder = Decoder()
@@ -21,7 +21,7 @@ class MemSeg(nn.Module):
         f_ii = features[1:-1]
 
         # extract concatenated information(CI):    [B, 128, 64, 64], [B, 256, 32, 32], [B, 512, 16, 16]
-        concat_features = self.memory_bank.forward(features = f_ii)
+        concat_features = self.memory_bank(features = f_ii)
 
         # Multi-scale Feature Fusion(MSFF) Module: [B, 64, 64, 64], [B, 128, 32, 32], [B, 256, 16, 16]
         msff_outputs = self.msff(features = concat_features)

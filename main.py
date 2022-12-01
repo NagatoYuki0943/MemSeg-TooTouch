@@ -105,29 +105,38 @@ def run(cfg):
         features_only = True
     ).to(device)
     if "resnet" in cfg['MODEL']['feature_extractor_name']:
-        print("freeze resnet layer1,2,3.")
+        print("freeze resnet conv1,bn1,layer1,2,3.")
         ## freeze weight of layer1,2,3 for resnet
         for l in ['conv1', 'bn1', 'layer1', 'layer2', 'layer3']: # add conv1 and bn1
             for p in feature_extractor[l].parameters():
                 p.requires_grad = False
 
     # build memory bank
-    memory_bank = MemoryBank(
-        normal_dataset   = memoryset,
-        nb_memory_sample = cfg['MEMORYBANK']['nb_memory_sample'],
-        device           = device
-    )
-    ## update normal samples and save
-    memory_bank.update(feature_extractor=feature_extractor)
-    torch.save(memory_bank, os.path.join(savedir, f'memory_bank.pt'))
-    _logger.info('Update {} normal samples in memory bank'.format(cfg['MEMORYBANK']['nb_memory_sample']))
+    # memory_bank = MemoryBank(
+    #     normal_dataset   = memoryset,
+    #     nb_memory_sample = cfg['MEMORYBANK']['nb_memory_sample'],
+    #     device           = device
+    # )
+    # ## update normal samples and save
+    # memory_bank.update(feature_extractor=feature_extractor)
+    # torch.save(memory_bank, os.path.join(savedir, f'memory_bank.pt'))
+    # _logger.info('Update {} normal samples in memory bank'.format(cfg['MEMORYBANK']['nb_memory_sample']))
 
     # build MemSeg
     model = MemSeg(
-        memory_bank       = memory_bank,
         feature_extractor = feature_extractor
     ).to(device)
 
+    model.memory_bank.update(
+        feature_extractor = feature_extractor,
+        normal_dataset    = memoryset,
+        nb_memory_sample  = cfg['MEMORYBANK']['nb_memory_sample'],
+        device            = device
+    )
+    _logger.info('Update {} normal samples in memory bank'.format(cfg['MEMORYBANK']['nb_memory_sample']))
+
+    torch.save(model.state_dict(), os.path.join(savedir, f'model.pt'))
+    return
     # Set training
     l1_criterion = nn.L1Loss()
     f_criterion = FocalLoss(

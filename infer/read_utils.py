@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 from skimage import morphology
 from skimage.segmentation import find_boundaries
 from skimage.morphology import dilation
+from torch import nn
 
 
 #-----------------------------#
@@ -228,6 +229,26 @@ def save_image(save_path: str, image: np.ndarray, mask: np.ndarray, mask_outline
     # return
     plt.savefig(save_path)
     plt.close()
+
+
+def load_dynamic_buffer_module(model: nn.Module, state_dict: dict) -> nn.Module:
+    """解决使用register_buffer保存的参数初始化形状和保存权重形状不统一的问题
+
+    refer: https://github.com/openvinotoolkit/anomalib/blob/main/anomalib/models/components/base/dynamic_module.py#L32
+
+    Args:
+        model (nn.Module): model
+        state_dict (dict): state_dict
+    """
+    model_state_dict = model.state_dict()
+    for key in state_dict.keys():
+        # 如果对应位置的形状不一样,就修改模型参数的形状
+        if model_state_dict[key].shape != state_dict[key].shape:
+            attribute = getattr(model, key)
+            attribute.resize_(state_dict[key].shape)
+
+    model.load_state_dict(state_dict)
+    return model
 
 
 if __name__ == "__main__":

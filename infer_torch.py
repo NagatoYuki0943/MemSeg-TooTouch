@@ -41,15 +41,15 @@ class TorchInference(Inference):
             torchscript: script模型
         """
         # memory_bank
-        memory_bank = torch.load(os.path.join(model_dir, 'memory_bank.pt'))
-        if self.use_cuda:
-            memory_bank.device = 'cuda'
-            for k in memory_bank.memory_information.keys():
-                memory_bank.memory_information[k] = memory_bank.memory_information[k].cuda()
-        else:
-            memory_bank.device = 'cpu'
-            for k in memory_bank.memory_information.keys():
-                memory_bank.memory_information[k] = memory_bank.memory_information[k].cpu()
+        # memory_bank = torch.load(os.path.join(model_dir, 'memory_bank.pt'))
+        # if self.use_cuda:
+        #     memory_bank.device = 'cuda'
+        #     for k in memory_bank.memory_information.keys():
+        #         memory_bank.memory_information[k] = memory_bank.memory_information[k].cuda()
+        # else:
+        #     memory_bank.device = 'cpu'
+        #     for k in memory_bank.memory_information.keys():
+        #         memory_bank.memory_information[k] = memory_bank.memory_information[k].cpu()
 
         # feature_extractor
         feature_extractor = create_model(
@@ -60,7 +60,7 @@ class TorchInference(Inference):
 
         # model
         model = MemSeg(
-            memory_bank       = memory_bank,
+            # memory_bank       = memory_bank,
             feature_extractor = feature_extractor
         )
 
