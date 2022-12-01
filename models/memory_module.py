@@ -41,7 +41,7 @@ class MemoryBank:
                 # extract features
                 features = feature_extractor(input_normal.unsqueeze(0))
 
-                # save features into memoery bank
+                # save features into memoery bank 不要 conv1和layer4的输出
                 for i, features_l in enumerate(features[1:-1]):
                     if f'level{i}' not in self.memory_information.keys():
                         self.memory_information[f'level{i}'] = features_l

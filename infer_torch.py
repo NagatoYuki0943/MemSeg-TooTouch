@@ -81,14 +81,14 @@ class TorchInference(Inference):
             self.model(x)
 
 
-    def infer(self, image: np.ndarray) -> tuple[np.ndarray, float]:
+    def infer(self, image: np.ndarray) -> np.ndarray:
         """推理单张图片
 
         Args:
             image (np.ndarray): 图片
 
         Returns:
-            tuple[np.ndarray, float]: hotmap, score
+            np.ndarray: hotmap
         """
         # 1.保存图片高宽
         image_height, image_width = image.shape[0], image.shape[1]
@@ -114,7 +114,6 @@ class TorchInference(Inference):
 
         # 5.还原到原图尺寸
         y = cv2.resize(y, (image_width, image_height))
-
 
         return y
 
@@ -205,7 +204,7 @@ def multi(yaml_path: str, model_dir: str, image_dir: str, save_dir: str, use_cud
 if __name__ == "__main__":
     image_path = "./datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "./datasets/MVTec/bottle/test/broken_large"
-    yaml_path  = "./configs/bottle.yaml"
+    yaml_path  = "./saved_model/MemSeg-bottle/config.yaml"
     model_dir  = "./saved_model/MemSeg-bottle"
     save_path  = "./saved_model/MemSeg-bottle/torch_output.jpg"
     save_dir   = "./saved_model/MemSeg-bottle/result"
@@ -214,9 +213,9 @@ if __name__ == "__main__":
 
     image_path = "./datasets/custom/test/bad/001.jpg"
     image_dir  = "./datasets/custom/test/bad"
-    yaml_path  = "./configs/custom.yaml"
-    model_dir  = "./saved_model/MemSeg-custom-256"
-    save_path  = "./saved_model/MemSeg-custom-256/torch_output.jpg"
-    save_dir   = "./saved_model/MemSeg-custom-256/result"
+    yaml_path  = "./saved_model/1/MemSeg-custom-256/config.yaml"
+    model_dir  = "./saved_model/1/MemSeg-custom-256"
+    save_path  = "./saved_model/1/MemSeg-custom-256/torch_output.jpg"
+    save_dir   = "./saved_model/1/MemSeg-custom-256/result"
     single(yaml_path, model_dir, image_path, save_path, use_cuda = True)
     # multi(yaml_path, model_dir, image_dir, save_dir, use_cuda = True)
