@@ -1,10 +1,10 @@
 import torch
-from torch import nn
-import torch.nn.functional as F
+from torch import Tensor
 from torch.utils.data import Dataset
 
 import numpy as np
 from typing import List
+import warnings
 
 
 class MemoryBank:
@@ -58,7 +58,7 @@ class MemoryBank:
             # batch
             for b_idx, features_b in enumerate(features[l]):
                 # calculate l2 loss
-                diff = F.mse_loss(
+                diff = mse_loss(
                     input     = torch.repeat_interleave(features_b.unsqueeze(0), repeats=self.nb_memory_sample, dim=0),
                     target    = self.memory_information[level],
                     reduction ='none'
@@ -78,7 +78,36 @@ class MemoryBank:
         for l, level in enumerate(self.memory_information.keys()):
 
             selected_features = torch.index_select(self.memory_information[level], dim=0, index=diff_bank.argmin(dim=1))
-            diff_features = F.mse_loss(selected_features, features[l], reduction='none')
+            diff_features = mse_loss(selected_features, features[l], reduction='none')
             features[l] = torch.cat([features[l], diff_features], dim=1)
 
         return features
+
+
+def mse_loss(input: Tensor, target: Tensor, reduction = 'mean'):
+    """mse loss
+    input and target shape should be same.
+
+    Args:
+        input (Tensor):  predict value
+        target (Tensor): target value
+        reduction (str, optional): mean' | 'sum' | 'none'. Defaults to 'mean'.
+
+    Returns:
+        Tensor: mse result
+    """
+    if target.size() != input.size():
+        warnings.warn(
+            "Using a target size ({}) that is different to the input size ({}). "
+            "This will likely lead to incorrect results due to broadcasting. "
+            "Please ensure they have the same size.".format(target.size(), input.size()),
+            stacklevel=2,
+        )
+
+    result: Tensor = (input - target) ** 2
+    if reduction == "mean":
+        return result.mean()
+    elif reduction == "sum":
+        return result.sum()
+    elif reduction == "none":
+        return result
