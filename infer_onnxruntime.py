@@ -215,8 +215,8 @@ if __name__ == "__main__":
 
     image_path = "./datasets/custom/test/bad/001.jpg"
     image_dir  = "./datasets/custom/test/bad"
-    yaml_path  = "./saved_model/1/MemSeg-custom-256/config.json"
-    json_path  = "./saved_model/1/MemSeg-custom-256/best_model.onnx"
+    json_path  = "./saved_model/1/MemSeg-custom-256/config.json"
+    onnx_path  = "./saved_model/1/MemSeg-custom-256/best_model.onnx"
     save_path  = "./saved_model/1/MemSeg-custom-256/onnxruntime_output.jpg"
     save_dir   = "./saved_model/1/MemSeg-custom-256/onnx_result"
     # single(json_path, onnx_path, image_path, save_path, mode="cuda")
