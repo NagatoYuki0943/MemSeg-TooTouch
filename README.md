@@ -34,11 +34,63 @@ wandb
 </p>
 
 
-# Run
+# Train
 
 ```bash
 python main.py --yaml_config ./configs/bottle.yaml
 ```
+
+## Train custom data
+
+> `configs/custom.yaml`
+
+```yaml
+EXP_NAME: MemSeg
+SEED: 42
+
+DATASET:
+  datadir: './datasets'
+  texture_source_dir: './datasets/dtd/images'
+  target: 'custom'
+  resize: !!python/tuple
+    - 256 # height
+    - 256 # width
+  structure_grid_size: 8
+  transparency_range:
+    - 0.15 # under bound
+    - 1. # upper bound
+  perlin_scale: 6
+  min_perlin_scale: 0
+  perlin_noise_threshold: 0.5
+```
+
+> 将自定义数据放到 `datasets/custom`文件夹下
+>
+> 格式如下
+
+```
+└─datasets
+   └─custom
+      ├─test
+      │  ├─bad/  <- 这一个级别内存放图片
+      │  ├─good/
+      │  └─.../
+      └─train
+          ├─good/
+          └─.../
+```
+
+> train
+
+```bash
+python main.py --yaml_config ./configs/custom.yaml
+```
+
+# export
+
+> Onnx is exported by default during training
+>
+> You can export custom format by using `export.py`
 
 ## Demo
 

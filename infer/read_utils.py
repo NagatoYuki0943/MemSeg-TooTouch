@@ -1,5 +1,6 @@
 import numpy as np
 import yaml
+import json
 import cv2
 from typing import Callable
 import albumentations as A
@@ -62,10 +63,27 @@ def get_transform(height: int, width: int, tensor = True) -> Callable:
 
 
 #-----------------------------#
+#   获取meta_data
+#-----------------------------#
+def get_json(path: str) -> dict:
+    """get yaml config
+
+    Args:
+        path (str): json file path
+
+    Returns:
+        meta_data(dict): data
+    """
+    with open(path, mode='r', encoding='utf-8') as f:
+        data = json.load(f)
+    return data
+
+
+#-----------------------------#
 #   获取yaml config
 #-----------------------------#
-def get_yaml_config(path: str) -> dict:
-    """获取 image_threshold, pixel_threshold, min, max
+def get_yaml(path: str) -> dict:
+    """get yaml config
 
     Args:
         path (str): yaml file path
@@ -228,6 +246,24 @@ def save_image(save_path: str, image: np.ndarray, mask: np.ndarray, mask_outline
     # return
     plt.savefig(save_path)
     plt.close()
+
+
+def softmax(x: np.ndarray, axis=0) -> np.ndarray:
+    """numpy softmax
+    将每个值求e的指数全都变为大于0的值,然后除以求指数之后的总和
+    :math:`\text{Softmax}(x_{i}) = \frac{\exp(x_i)}{\sum_j \exp(x_j)}`
+
+    Args:
+        x (np.ndarray): 计算的数据
+        axis (int, optional): 在那个维度上计算. Defaults to 0.
+
+    Returns:
+        np.ndarray: 计算结果
+    """
+    # 为了稳定地计算softmax概率， 一般会减掉最大的那个元素
+    x -= np.max(x, axis=axis, keepdims=True)
+    # print(x)              # [-4. -3. -2. -1.  0.]
+    return np.exp(x) / np.sum(np.exp(x), axis=axis, keepdims=True)
 
 
 if __name__ == "__main__":

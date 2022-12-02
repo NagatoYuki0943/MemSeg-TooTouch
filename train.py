@@ -10,7 +10,7 @@ import torch.nn.functional as F
 import numpy as np
 from typing import List
 from anomalib.utils.metrics import AUPRO, AUROC
-
+from export import export
 
 _logger = logging.getLogger('train')
 
@@ -158,6 +158,9 @@ def training(model, trainloader, validloader, criterion, optimizer, scheduler, n
     state = {'latest_step':step}
     state.update(eval_log)
     json.dump(state, open(os.path.join(savedir, 'latest_score.json'),'w'), indent='\t')
+
+    # export
+    export(savedir)
 
 
 def evaluate(model, dataloader, criterion, log_interval, device='cpu'):

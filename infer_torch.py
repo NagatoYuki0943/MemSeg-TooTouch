@@ -22,7 +22,7 @@ class TorchInference(Inference):
         super().__init__()
         self.use_cuda = use_cuda
         # 超参数
-        self.config = get_yaml_config(yaml_path)
+        self.config = get_yaml(yaml_path)
         self.infer_size = self.config['DATASET']['resize']
         # 载入模型
         self.model = self.get_model(model_dir)
@@ -35,10 +35,10 @@ class TorchInference(Inference):
         """获取script模型
 
         Args:
-            torchscript_path (str): 模型路径
+            model_dir (str): 模型文件夹路径
 
         Returns:
-            torchscript: script模型
+            nn.Module: torch模型
         """
         # memory_bank
         memory_bank = torch.load(os.path.join(model_dir, 'memory_bank.pt'))
@@ -73,8 +73,7 @@ class TorchInference(Inference):
     def warm_up(self):
         """预热模型
         """
-        infer_height, infer_width = self.infer_size
-        x = torch.zeros(1, 3, infer_height, infer_width)
+        x = torch.zeros(1, 3, *self.infer_size)
         if self.use_cuda:
             x = x.cuda()
         with torch.inference_mode():
@@ -100,7 +99,7 @@ class TorchInference(Inference):
         x = transform(image=image)
         x = x['image'].unsqueeze(0)
 
-        # 3.预测得到热力图
+        # 3.预测得到分类图
         if self.use_cuda:
             x = x.cuda()
         with torch.inference_mode():
@@ -207,7 +206,7 @@ if __name__ == "__main__":
     yaml_path  = "./saved_model/MemSeg-bottle/config.yaml"
     model_dir  = "./saved_model/MemSeg-bottle"
     save_path  = "./saved_model/MemSeg-bottle/torch_output.jpg"
-    save_dir   = "./saved_model/MemSeg-bottle/result"
+    save_dir   = "./saved_model/MemSeg-bottle/torch_result"
     # single(yaml_path, model_dir, image_path, save_path, use_cuda = True)
     # multi(yaml_path, model_dir, image_dir, save_dir, use_cuda = True)
 
@@ -216,6 +215,6 @@ if __name__ == "__main__":
     yaml_path  = "./saved_model/1/MemSeg-custom-256/config.yaml"
     model_dir  = "./saved_model/1/MemSeg-custom-256"
     save_path  = "./saved_model/1/MemSeg-custom-256/torch_output.jpg"
-    save_dir   = "./saved_model/1/MemSeg-custom-256/result"
+    save_dir   = "./saved_model/1/MemSeg-custom-256/torch_result"
     single(yaml_path, model_dir, image_path, save_path, use_cuda = True)
     # multi(yaml_path, model_dir, image_dir, save_dir, use_cuda = True)

@@ -9,7 +9,6 @@ import warnings
 
 class MemoryBank:
     def __init__(self, normal_dataset: Dataset, nb_memory_sample: int = 30, device='cpu'):
-        # super().__init__()
 
         self.device = device
 

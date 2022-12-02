@@ -1,11 +1,11 @@
 import wandb
-import json
 import logging
 import os
 import torch
 import torch.nn as nn
 import argparse
 import yaml
+import json
 
 from timm import create_model
 from data import create_dataset, create_dataloader
@@ -34,8 +34,16 @@ def run(cfg):
     savedir = os.path.join(cfg['RESULT']['savedir'], cfg['EXP_NAME'])
     os.makedirs(savedir, exist_ok=True)
 
-    # save configs
-    yaml.dump(cfg, open(os.path.join(savedir, "config.yaml"), 'w', encoding='utf-8'))
+    # save yaml configs
+    with open(os.path.join(savedir, "config.yaml"), 'w', encoding='utf-8') as f:
+        yaml.dump(cfg, f)
+
+    # save json configs
+    json_config = {     # h w
+        "infer_size" : [cfg['DATASET']['resize'][0], cfg['DATASET']['resize'][1]]
+    }
+    with open(os.path.join(savedir, "config.json"), "w", encoding="utf-8") as f:
+        json.dump(json_config, f, ensure_ascii=False, indent=4)
 
     # wandb
     if cfg['TRAIN']['use_wandb']:
@@ -105,7 +113,7 @@ def run(cfg):
         features_only = True
     ).to(device)
     if "resnet" in cfg['MODEL']['feature_extractor_name']:
-        print("freeze resnet layer1,2,3.")
+        print("freeze resnet conv1,bn1,layer1,2,3.")
         ## freeze weight of layer1,2,3 for resnet
         for l in ['conv1', 'bn1', 'layer1', 'layer2', 'layer3']: # add conv1 and bn1
             for p in feature_extractor[l].parameters():
@@ -178,6 +186,7 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     # config
-    cfg = yaml.load(open(args.yaml_config,'r'), Loader=yaml.FullLoader)
+    with open(args.yaml_config, 'r', encoding="utf-8") as f:
+        cfg = yaml.load(f, Loader=yaml.FullLoader)
 
     run(cfg)
