@@ -210,14 +210,14 @@ if __name__ == "__main__":
     onnx_path  = "./saved_model/mvtec/MemSeg-bottle/best_model.onnx"
     save_path  = "./saved_model/mvtec/MemSeg-bottle/onnxruntime_output.jpg"
     save_dir   = "./saved_model/mvtec/MemSeg-bottle/onnx_result"
-    single(json_path, onnx_path, image_path, save_path, mode="cuda")
+    # single(json_path, onnx_path, image_path, save_path, mode="cuda")
     # multi(json_path, onnx_path, image_dir, save_dir, mode="cuda")
 
     image_path = "./datasets/custom/test/bad/001.jpg"
     image_dir  = "./datasets/custom/test/bad"
-    json_path  = "./saved_model/1/MemSeg-custom-256/config.json"
-    onnx_path  = "./saved_model/1/MemSeg-custom-256/best_model.onnx"
-    save_path  = "./saved_model/1/MemSeg-custom-256/onnxruntime_output.jpg"
-    save_dir   = "./saved_model/1/MemSeg-custom-256/onnx_result"
+    json_path  = "./saved_model/MemSeg-custom/config.json"
+    onnx_path  = "./saved_model/MemSeg-custom/best_model.onnx"
+    save_path  = "./saved_model/MemSeg-custom/onnxruntime_output.jpg"
+    save_dir   = "./saved_model/MemSeg-custom/onnx_result"
     # single(json_path, onnx_path, image_path, save_path, mode="cuda")
-    # multi(json_path, onnx_path, image_dir, save_dir, mode="cuda")
+    multi(json_path, onnx_path, image_dir, save_dir, mode="cuda")

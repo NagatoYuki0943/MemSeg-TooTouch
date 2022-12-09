@@ -70,7 +70,7 @@ class MemSegDataset(Dataset):
         # target
         target = 0 if 'good' in self.file_list[idx] else 1
 
-        # mask
+        # # mask
         # if 'good' in file_path:
         #     mask = np.zeros(self.resize, dtype=np.float32)
         # else:
@@ -79,9 +79,7 @@ class MemSegDataset(Dataset):
         #         cv2.IMREAD_GRAYSCALE
         #     )
         #     mask = cv2.resize(mask, dsize=(self.resize[1], self.resize[0])).astype(np.bool).astype(np.int)
-        # 自己的图片没有mask
         mask = np.zeros(self.resize, dtype=np.float32)
-
         ## anomaly source
         if not self.to_memory and self.train:
             if self.anomaly_switch:
@@ -96,6 +94,7 @@ class MemSegDataset(Dataset):
         mask = torch.Tensor(mask).to(torch.int64)
 
         return img, mask, target
+
 
     def rand_augment(self):
         augmenters = [
@@ -240,4 +239,3 @@ class MemSegDataset(Dataset):
 
     def __len__(self):
         return len(self.file_list)
-

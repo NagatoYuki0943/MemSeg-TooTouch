@@ -183,7 +183,6 @@ def evaluate(model, dataloader, criterion, log_interval, device='cpu'):
                 preds  = anomaly_score.cpu(),
                 target = targets.cpu()
             )
-            # 不计算mask,自己的图片没有mask
             # auroc_pixel_metric.update(
             #     preds  = outputs[:,1,:].cpu(),
             #     target = masks.cpu()
@@ -200,9 +199,6 @@ def evaluate(model, dataloader, criterion, log_interval, device='cpu'):
         # 'AUPRO-pixel':aupro_pixel_metric.compute().item()
     }
 
-    # _logger.info('TEST: AUROC-image: %.3f%% | AUROC-pixel: %.3f%% | AUPRO-pixel: %.3f%%' %
-    #             (metrics['AUROC-image'], metrics['AUROC-pixel'], metrics['AUPRO-pixel']))
-    _logger.info('TEST: AUROC-image: %.3f%%' %
-                (metrics['AUROC-image']))
+    _logger.info('TEST: AUROC-image: %.3f%%' %(metrics['AUROC-image']))
 
     return metrics

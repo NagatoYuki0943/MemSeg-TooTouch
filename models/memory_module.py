@@ -1,6 +1,6 @@
 import torch
 from torch import Tensor
-from torch.utils.data import Dataset
+import torch.nn.functional as F
 
 import numpy as np
 from typing import List
@@ -8,8 +8,7 @@ import warnings
 
 
 class MemoryBank:
-    def __init__(self, normal_dataset: Dataset, nb_memory_sample: int = 30, device='cpu'):
-
+    def __init__(self, normal_dataset, nb_memory_sample: int = 30, device='cpu'):
         self.device = device
 
         # memory bank
@@ -22,7 +21,6 @@ class MemoryBank:
         self.nb_memory_sample = nb_memory_sample
 
 
-    @torch.jit.ignore
     def update(self, feature_extractor):
         feature_extractor.eval()
 
@@ -33,14 +31,14 @@ class MemoryBank:
         # extract features and save features into memory bank
         with torch.no_grad():
             for i in range(self.nb_memory_sample):
-                # select image 只选择一部分图片存到memork_bank中
+                # select image
                 input_normal, _, _ = self.normal_dataset[samples_idx[i]]
                 input_normal = input_normal.to(self.device)
 
                 # extract features
                 features = feature_extractor(input_normal.unsqueeze(0))
 
-                # save features into memoery bank 不要 conv1和layer4的输出
+                # save features into memoery bank
                 for i, features_l in enumerate(features[1:-1]):
                     if f'level{i}' not in self.memory_information.keys():
                         self.memory_information[f'level{i}'] = features_l
@@ -61,7 +59,7 @@ class MemoryBank:
                     input     = torch.repeat_interleave(features_b.unsqueeze(0), repeats=self.nb_memory_sample, dim=0),
                     target    = self.memory_information[level],
                     reduction ='none'
-                ).mean(dim=[1, 2, 3])
+                ).mean(dim=[1,2,3])
 
                 # sum loss
                 diff_bank[b_idx] += diff
@@ -69,7 +67,7 @@ class MemoryBank:
         return diff_bank
 
 
-    def forward(self, features: List[torch.Tensor]) -> torch.Tensor:
+    def select(self, features: List[torch.Tensor]) -> torch.Tensor:
         # calculate difference between features and normal features of memory bank
         diff_bank = self._calc_diff(features=features)
 

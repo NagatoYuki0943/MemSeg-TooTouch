@@ -1,11 +1,11 @@
 import wandb
+import json
 import logging
 import os
 import torch
 import torch.nn as nn
 import argparse
 import yaml
-import json
 
 from timm import create_model
 from data import create_dataset, create_dataloader
@@ -112,12 +112,10 @@ def run(cfg):
         pretrained    = True,
         features_only = True
     ).to(device)
-    if "resnet" in cfg['MODEL']['feature_extractor_name']:
-        print("freeze resnet conv1,bn1,layer1,2,3.")
-        ## freeze weight of layer1,2,3 for resnet
-        for l in ['conv1', 'bn1', 'layer1', 'layer2', 'layer3']: # add conv1 and bn1
-            for p in feature_extractor[l].parameters():
-                p.requires_grad = False
+    ## freeze weight of layer1,2,3
+    for l in ['layer1','layer2','layer3']:
+        for p in feature_extractor[l].parameters():
+            p.requires_grad = False
 
     # build memory bank
     memory_bank = MemoryBank(
@@ -186,7 +184,6 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     # config
-    with open(args.yaml_config, 'r', encoding="utf-8") as f:
-        cfg = yaml.load(f, Loader=yaml.FullLoader)
+    cfg = yaml.load(open(args.yaml_config,'r'), Loader=yaml.FullLoader)
 
     run(cfg)

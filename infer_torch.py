@@ -212,9 +212,9 @@ if __name__ == "__main__":
 
     image_path = "./datasets/custom/test/bad/001.jpg"
     image_dir  = "./datasets/custom/test/bad"
-    yaml_path  = "./saved_model/1/MemSeg-custom-256/config.yaml"
-    model_dir  = "./saved_model/1/MemSeg-custom-256"
-    save_path  = "./saved_model/1/MemSeg-custom-256/torch_output.jpg"
-    save_dir   = "./saved_model/1/MemSeg-custom-256/torch_result"
-    single(yaml_path, model_dir, image_path, save_path, use_cuda = True)
-    # multi(yaml_path, model_dir, image_dir, save_dir, use_cuda = True)
+    yaml_path  = "./saved_model/MemSeg-custom/config.yaml"
+    model_dir  = "./saved_model/MemSeg-custom"
+    save_path  = "./saved_model/MemSeg-custom/torch_output.jpg"
+    save_dir   = "./saved_model/MemSeg-custom/torch_result"
+    # single(yaml_path, model_dir, image_path, save_path, use_cuda = True)
+    multi(yaml_path, model_dir, image_dir, save_dir, use_cuda = True)

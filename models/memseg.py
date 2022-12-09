@@ -1,8 +1,6 @@
 import torch.nn as nn
 from .decoder import Decoder
 from .msff import MSFF
-from .memory_module import MemoryBank
-
 
 class MemSeg(nn.Module):
     def __init__(self, memory_bank, feature_extractor: nn.Module):
@@ -21,7 +19,7 @@ class MemSeg(nn.Module):
         f_ii = features[1:-1]
 
         # extract concatenated information(CI):    [B, 128, 64, 64], [B, 256, 32, 32], [B, 512, 16, 16]
-        concat_features = self.memory_bank.forward(features = f_ii)
+        concat_features = self.memory_bank.select(features = f_ii)
 
         # Multi-scale Feature Fusion(MSFF) Module: [B, 64, 64, 64], [B, 128, 32, 32], [B, 256, 16, 16]
         msff_outputs = self.msff(features = concat_features)

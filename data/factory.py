@@ -2,7 +2,6 @@ from torch.utils.data import DataLoader
 from typing import Tuple, List
 from .dataset import MemSegDataset
 
-
 def create_dataset(
     datadir: str, target: str, train: bool, to_memory: bool = False,
     resize: Tuple[int, int] = (224,224),
