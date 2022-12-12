@@ -1,4 +1,6 @@
-import onnxruntime as ort
+import tensorrt as trt
+import pycuda.driver as cuda
+import pycuda.autoinit # 初始化cuda
 import time
 import os
 from statistics import mean
@@ -8,12 +10,12 @@ from infer.infer import Inference
 from infer.read_utils import *
 
 
-class OrtInference(Inference):
-    def __init__(self, json_path: str, onnx_path: str, mode: str="cpu") -> None:
+class TrtInference(Inference):
+    def __init__(self, json_path: str, trt_path: str) -> None:
         """
         Args:
             json_path (str):  配置文件路径
-            onnx_path (str):  onnx_path
+            trt_path (str):   trt_path
             mode (str, optional): cpu cuda tensorrt. Defaults to cpu.
         """
         super().__init__()
@@ -21,60 +23,24 @@ class OrtInference(Inference):
         self.config = get_json(json_path)
         self.infer_size = self.config['infer_size']
         # 载入模型
-        self.model = self.get_model(onnx_path, mode)
+        self.get_model(trt_path)
         # 预热模型
         self.warm_up()
 
 
-    def get_model(self, onnx_path: str, mode: str="cpu") -> ort.InferenceSession:
-        """获取onnxruntime模型
+    def get_model(self, trt_path: str):
+        """获取tensorrt模型
 
         Args:
-            onnx_path (str):    模型路径
-            mode (str, optional): cpu cuda tensorrt. Defaults to cpu.
+            trt_path (str):    模型路径
 
         Returns:
-            ort.InferenceSession: 模型session
-        """
-        mode = mode.lower()
-        assert mode in ["cpu", "cuda", "tensorrt"], "onnxruntime only support cpu, cuda and tensorrt inference."
-        print(f"inference with {mode} !")
 
-        so = ort.SessionOptions()
-        so.log_severity_level = 3
-        providers = {
-            "cpu":  ['CPUExecutionProvider'],
-            # https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html
-            "cuda": [
-                    ('CUDAExecutionProvider', {
-                        'device_id': 0,
-                        'arena_extend_strategy': 'kNextPowerOfTwo',
-                        'gpu_mem_limit': 2 * 1024 * 1024 * 1024, # 2GB
-                        'cudnn_conv_algo_search': 'EXHAUSTIVE',
-                        'do_copy_in_default_stream': True,
-                    }),
-                    'CPUExecutionProvider',
-                ],
-            # tensorrt
-            # https://onnxruntime.ai/docs/execution-providers/TensorRT-ExecutionProvider.html
-            # it is recommended you also register CUDAExecutionProvider to allow Onnx Runtime to assign nodes to CUDA execution provider that TensorRT does not support.
-            # set providers to ['TensorrtExecutionProvider', 'CUDAExecutionProvider'] with TensorrtExecutionProvider having the higher priority.
-            "tensorrt": [
-                    ('TensorrtExecutionProvider', {
-                        'device_id': 0,
-                        'trt_max_workspace_size': 2 * 1024 * 1024 * 1024, # 2GB
-                        'trt_fp16_enable': False,
-                    }),
-                    ('CUDAExecutionProvider', {
-                        'device_id': 0,
-                        'arena_extend_strategy': 'kNextPowerOfTwo',
-                        'gpu_mem_limit': 2 * 1024 * 1024 * 1024, # 2GB
-                        'cudnn_conv_algo_search': 'EXHAUSTIVE',
-                        'do_copy_in_default_stream': True,
-                    })
-                ]
-        }[mode]
-        return ort.InferenceSession(onnx_path, sess_options=so, providers=providers)
+        """
+        # Load the network in Inference Engine
+        trt_logger = trt.Logger(trt.Logger.WARNING)
+        with open(trt_path, "rb") as f, trt.Runtime(trt_logger) as runtime:
+            self.engine = runtime.deserialize_cuda_engine(f.read())
 
 
     def warm_up(self):
@@ -106,12 +72,39 @@ class OrtInference(Inference):
         # x = np.ones((1, 3, 224, 224))
         x = x.astype(dtype=np.float32)
 
-        inputs = self.model.get_inputs()
-        input_name1 = inputs[0].name
-        predictions = self.model.run(None, {input_name1: x})    # 返回值为list
+        # 3.推理
+        with self.engine.create_execution_context() as context:
+            # Set input shape based on image dimensions for inference
+            context.set_binding_shape(self.engine.get_binding_index("input"), (1, 3, infer_height, infer_width))
+            # Allocate host and device buffers
+            bindings = []
+            for binding in self.engine:
+                binding_idx = self.engine.get_binding_index(binding)
+                size = trt.volume(context.get_binding_shape(binding_idx))
+                dtype = trt.nptype(self.engine.get_binding_dtype(binding))
+                if self.engine.binding_is_input(binding):
+                    input_buffer = np.ascontiguousarray(x)
+                    input_memory = cuda.mem_alloc(x.nbytes)
+                    bindings.append(int(input_memory))
+                else:
+                    output_buffer = cuda.pagelocked_empty(size, dtype)
+                    output_memory = cuda.mem_alloc(output_buffer.nbytes)
+                    bindings.append(int(output_memory))
+
+            stream = cuda.Stream()
+            # Transfer input data to the GPU.
+            cuda.memcpy_htod_async(input_memory, input_buffer, stream)
+            # Run inference
+            context.execute_async_v2(bindings=bindings, stream_handle=stream.handle)
+            # Transfer prediction output from the GPU.
+            cuda.memcpy_dtoh_async(output_buffer, output_memory, stream)
+            # Synchronize the stream
+            stream.synchronize()
+
+            predictions = np.reshape(output_buffer, (1, 2, infer_height, infer_width))
 
         # 4.预测后处理
-        y = softmax(predictions[0], axis=1) # [1, 2, H, W]
+        y = softmax(predictions, axis=1)    # [1, 2, H, W]
         y = y[0][1]                         # [H, W] 取出1,代表有问题的层
         y = y.squeeze()                     # [H, W]
 
@@ -121,18 +114,17 @@ class OrtInference(Inference):
         return y
 
 
-def single(json_path: str, onnx_path: str, image_path: str, save_path: str, mode: str="cpu") -> None:
+def single(json_path: str, trt_path: str, image_path: str, save_path: str) -> None:
     """预测单张图片
 
     Args:
         json_path (str):      配置文件路径
-        onnx_path (str):      onnx_path
+        trt_path (str):       onnx_path
         image_path (str):     图片路径
         save_path (str):      保存图片路径
-        mode (str, optional): cpu cuda tensorrt. Defaults to cpu.
     """
     # 1.获取推理器
-    inference = OrtInference(json_path, onnx_path, mode)
+    inference = TrtInference(json_path, trt_path)
 
     # 2.打开图片
     image = load_image(image_path)
@@ -151,15 +143,14 @@ def single(json_path: str, onnx_path: str, image_path: str, save_path: str, mode
     save_image(save_path, image, mask, mask_outline, superimposed_map)
 
 
-def multi(json_path: str, onnx_path: str, image_dir: str, save_dir: str, mode: str="cpu") -> None:
+def multi(json_path: str, trt_path: str, image_dir: str, save_dir: str) -> None:
     """预测多张图片
 
     Args:
         json_path (str):          配置文件路径
-        onnx_path (str):          onnx_path
+        trt_path (str):           onnx_path
         image_dir (str):          图片文件夹
         save_dir (str, optional): 保存图片路径,没有就不保存. Defaults to None.
-        mode (str, optional):     cpu cuda tensorrt. Defaults to cpu.
     """
     # 0.检查保存路径
     if save_dir is not None:
@@ -170,7 +161,7 @@ def multi(json_path: str, onnx_path: str, image_dir: str, save_dir: str, mode: s
         print("保存路径为None,不会保存图片")
 
     # 1.获取推理器
-    inference = OrtInference(json_path, onnx_path, mode)
+    inference = TrtInference(json_path, trt_path)
 
     # 2.获取文件夹中图片
     imgs = os.listdir(image_dir)
@@ -208,17 +199,17 @@ if __name__ == "__main__":
     image_path = "./datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "./datasets/MVTec/bottle/test/broken_large"
     json_path  = "./saved_model/mvtec/MemSeg-bottle/config.json"
-    onnx_path  = "./saved_model/mvtec/MemSeg-bottle/best_model.onnx"
-    save_path  = "./saved_model/mvtec/MemSeg-bottle/onnxruntime_output.jpg"
-    save_dir   = "./saved_model/mvtec/MemSeg-bottle/onnx_result"
-    # single(json_path, onnx_path, image_path, save_path, mode="cuda")
-    # multi(json_path, onnx_path, image_dir, save_dir, mode="cuda")
+    trt_path   = "./saved_model/mvtec/MemSeg-bottle/best_model.engine"
+    save_path  = "./saved_model/mvtec/MemSeg-bottle/tensorrt_async_output.jpg"
+    save_dir   = "./saved_model/mvtec/MemSeg-bottle/tensorrt_async_result"
+    # single(json_path, trt_path, image_path, save_path)
+    # multi(json_path, trt_path, image_dir, save_dir)
 
     image_path = "./datasets/custom/test/bad/001.jpg"
     image_dir  = "./datasets/custom/test/bad"
     json_path  = "./saved_model/MemSeg-custom/config.json"
-    onnx_path  = "./saved_model/MemSeg-custom/best_model.onnx"
-    save_path  = "./saved_model/MemSeg-custom/onnxruntime_output.jpg"
-    save_dir   = "./saved_model/MemSeg-custom/onnx_result"
-    single(json_path, onnx_path, image_path, save_path, mode="cuda")
-    # multi(json_path, onnx_path, image_dir, save_dir, mode="cuda")
+    trt_path   = "./saved_model/MemSeg-custom/best_model.engine"
+    save_path  = "./saved_model/MemSeg-custom/tensorrt_async_output.jpg"
+    save_dir   = "./saved_model/MemSeg-custom/tensorrt_async_result"
+    single(json_path, trt_path, image_path, save_path)
+    # multi(json_path, trt_path, image_dir, save_dir)

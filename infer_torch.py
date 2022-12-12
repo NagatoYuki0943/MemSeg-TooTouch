@@ -73,11 +73,9 @@ class TorchInference(Inference):
     def warm_up(self):
         """预热模型
         """
-        x = torch.zeros(1, 3, *self.infer_size)
-        if self.use_cuda:
-            x = x.cuda()
-        with torch.inference_mode():
-            self.model(x)
+        # [h w c], 这是opencv读取图片的shape
+        x = np.zeros((*self.infer_size, 3), dtype=np.float32)
+        self.infer(x)
 
 
     def infer(self, image: np.ndarray) -> np.ndarray:
@@ -216,5 +214,5 @@ if __name__ == "__main__":
     model_dir  = "./saved_model/MemSeg-custom"
     save_path  = "./saved_model/MemSeg-custom/torch_output.jpg"
     save_dir   = "./saved_model/MemSeg-custom/torch_result"
-    # single(yaml_path, model_dir, image_path, save_path, use_cuda = True)
-    multi(yaml_path, model_dir, image_dir, save_dir, use_cuda = True)
+    single(yaml_path, model_dir, image_path, save_path, use_cuda = True)
+    # multi(yaml_path, model_dir, image_dir, save_dir, use_cuda = True)
