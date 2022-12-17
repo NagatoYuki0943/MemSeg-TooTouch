@@ -10,7 +10,7 @@ from infer.infer import Inference
 from infer.read_utils import *
 
 
-# refer https://github.com/NVIDIA/TensorRT/blob/ef7713ca67435690f0b28dc9a50ee4021ae3651d/samples/python/efficientnet/infer.py
+# refer https://github.com/NVIDIA/TensorRT/blob/main/samples/python/efficientnet/infer.py
 class TrtInference(Inference):
     def __init__(self, json_path: str, trt_path: str) -> None:
         """
@@ -46,30 +46,40 @@ class TrtInference(Inference):
         assert self.context
 
         # Setup I/O bindings
-        self.inputs = []
-        self.outputs = []
-        self.allocations = []
+        self.inputs = []        # inputs
+        self.outputs = []       # outputs
+        self.allocations = []   # inputs&outputs cuda memorys
         for i in range(self.engine.num_bindings):
             is_input = False
-            if self.engine.binding_is_input(i):
-                is_input = True
-            name = self.engine.get_binding_name(i)
-            dtype = self.engine.get_binding_dtype(i)
-            shape = self.engine.get_binding_shape(i)
+            if trt.__version__ < "8.5":
+                if self.engine.binding_is_input(i):
+                    is_input = True
+                name = self.engine.get_binding_name(i)
+                dtype = self.engine.get_binding_dtype(i)
+                shape = self.engine.get_binding_shape(i)
+            else:
+                # 8.5 api
+                name = self.engine.get_tensor_name(i)
+                if self.engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT:
+                    is_input = True
+                dtype = self.engine.get_tensor_dtype(name)
+                shape = self.engine.get_tensor_shape(name) # both engine and context have this func and the returns are same.
+
             if is_input:
                 self.batch_size = shape[0]
-            size = np.dtype(trt.nptype(dtype)).itemsize
+            dtype = np.dtype(trt.nptype(dtype))
+            size = dtype.itemsize
             for s in shape:
                 size *= s
-            allocation = cuda.mem_alloc(size)
+            allocation = cuda.mem_alloc(size) # allocate cuda memory
             binding = {
                 "index": i,
                 "name": name,
-                "dtype": np.dtype(trt.nptype(dtype)),
+                "dtype": dtype,
                 "shape": list(shape),
                 "allocation": allocation,
             }
-            self.allocations.append(allocation)
+            self.allocations.append(allocation) # allocate cuda memory
             if is_input:
                 self.inputs.append(binding)
             else:
@@ -84,8 +94,9 @@ class TrtInference(Inference):
     def input_spec(self, i:int = 0):
         """
         Get the specs for the input tensor of the network. Useful to prepare memory allocations.
-        :param:
+        :params:
             i: the index of input
+
         :return: Two items, the shape of the input tensor and its (numpy) datatype.
         """
         return self.inputs[i]["shape"], self.inputs[i]["dtype"]
@@ -94,8 +105,9 @@ class TrtInference(Inference):
     def output_spec(self, i:int = 0):
         """
         Get the specs for the output tensor of the network. Useful to prepare memory allocations.
-        :param:
+        :params:
             i: the index of input
+
         :return: Two items, the shape of the output tensor and its (numpy) datatype.
         """
         return self.outputs[i]["shape"], self.outputs[i]["dtype"]
@@ -131,13 +143,13 @@ class TrtInference(Inference):
         x = x.astype(dtype=np.float32)
 
         # 3.推理
-        # Prepare the output data
+        # 准备存放输出结果
         output = np.zeros(*self.output_spec())
 
         # Process I/O and execute the network
-        cuda.memcpy_htod(self.inputs[0]["allocation"], np.ascontiguousarray(x))
+        cuda.memcpy_htod(self.inputs[0]["allocation"], np.ascontiguousarray(x)) # cpu memory to gpu memory
         self.context.execute_v2(self.allocations)
-        cuda.memcpy_dtoh(output, self.outputs[0]["allocation"])
+        cuda.memcpy_dtoh(output, self.outputs[0]["allocation"])                 # gpu memory to cpu memory
 
         predictions = np.reshape(output, (1, 2, infer_height, infer_width))
 
@@ -237,7 +249,7 @@ if __name__ == "__main__":
     image_path = "./datasets/MVTec/bottle/test/broken_large/000.png"
     image_dir  = "./datasets/MVTec/bottle/test/broken_large"
     json_path  = "./saved_model/mvtec/MemSeg-bottle/config.json"
-    trt_path   = "./saved_model/mvtec/MemSeg-bottle/best_model.engine"
+    trt_path   = "./saved_model/mvtec/MemSeg-bottle/best_model.engine" # trtexec --onnx=best_model.onnx --saveEngine=best_model.engine
     save_path  = "./saved_model/mvtec/MemSeg-bottle/tensorrt_output.jpg"
     save_dir   = "./saved_model/mvtec/MemSeg-bottle/tensorrt_result"
     # single(json_path, trt_path, image_path, save_path)
