@@ -27,6 +27,9 @@ class TorchInference(Inference):
         # 载入模型
         self.model = self.get_model(model_dir)
         self.model.eval()
+        # transform
+        infer_height, infer_width = self.infer_size # 推理时使用的图片大小
+        self.transform = get_transform(infer_height, infer_width, "tensor")
         # 预热模型
         self.warm_up()
 
@@ -91,11 +94,8 @@ class TorchInference(Inference):
         image_height, image_width = image.shape[0], image.shape[1]
 
         # 2.图片预处理
-        # 推理时使用的图片大小
-        infer_height, infer_width = self.infer_size
-        transform = get_transform(infer_height, infer_width, tensor=True)
-        x = transform(image=image)
-        x = x['image'].unsqueeze(0)
+        x = self.transform(image=image)['image'] # [c, h, w]
+        x = x.unsqueeze(0)                       # [c, h, w] -> [b, c, h, w]
 
         # 3.预测得到分类图
         if self.use_cuda:

@@ -24,6 +24,9 @@ class TrtInference(Inference):
         self.infer_size = self.config['infer_size']
         # 载入模型
         self.get_model(trt_path)
+        # transform
+        infer_height, infer_width = self.infer_size # 推理时使用的图片大小
+        self.transform = get_transform(infer_height, infer_width, "numpy")
         # 预热模型
         self.warm_up()
 
@@ -66,9 +69,8 @@ class TrtInference(Inference):
         # 2.图片预处理
         # 推理时使用的图片大小
         infer_height, infer_width = self.infer_size
-        transform = get_transform(infer_height, infer_width, tensor=False)
-        x = transform(image=image)
-        x = np.expand_dims(x['image'], axis=0)
+        x = self.transform(image=image)['image'] # [c, h, w]
+        x = np.expand_dims(x, axis=0)            # [c, h, w] -> [b, c, h, w]
         # x = np.ones((1, 3, 224, 224))
         x = x.astype(dtype=np.float32)
 
