@@ -15,7 +15,6 @@ from utils import torch_seed
 from typing import Union, List, Tuple
 
 
-
 class MemSegDataset(Dataset):
     def __init__(
         self, datadir: str, target: str, train: bool, to_memory: bool = False,
@@ -70,6 +69,7 @@ class MemSegDataset(Dataset):
         # target
         target = 0 if 'good' in self.file_list[idx] else 1
 
+        # 没有负样本,因此mask全为0
         # # mask
         # if 'good' in file_path:
         #     mask = np.zeros(self.resize, dtype=np.float32)
@@ -79,9 +79,11 @@ class MemSegDataset(Dataset):
         #         cv2.IMREAD_GRAYSCALE
         #     )
         #     mask = cv2.resize(mask, dsize=(self.resize[1], self.resize[0])).astype(np.bool).astype(np.int)
-        mask = np.zeros(self.resize, dtype=np.float32)
-        ## anomaly source
+        mask = np.zeros(self.resize, dtype=np.float32) # [256, 256]
+
+        ## anomaly source 正常图片和模拟异常图片交替获取
         if not self.to_memory and self.train:
+            # False -> True -> False -> ...
             if self.anomaly_switch:
                 img, mask = self.generate_anomaly(img=img)
                 target = 1
@@ -90,8 +92,8 @@ class MemSegDataset(Dataset):
                 self.anomaly_switch = True
 
         # convert ndarray into tensor
-        img = self.transform(img)
-        mask = torch.Tensor(mask).to(torch.int64)
+        img = self.transform(img)                 # [3, 256, 256]
+        mask = torch.Tensor(mask).to(torch.int64) # [256, 256]
 
         return img, mask, target
 

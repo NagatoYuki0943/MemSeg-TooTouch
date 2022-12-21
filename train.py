@@ -65,14 +65,15 @@ def training(model, trainloader, validloader, criterion, optimizer, scheduler, n
         end = time.time()
         for inputs, masks, targets in trainloader:
             # batch
+            # [B, 3, 256, 256] [B, 1, 256, 256] [B, 1]
             inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device)
 
             data_time_m.update(time.time() - end)
 
             # predict
-            outputs = model(inputs)
-            outputs = F.softmax(outputs, dim=1)
-            l1_loss = l1_criterion(outputs[:,1,:], masks)
+            outputs = model(inputs)             # [B, 2, 256, 256]
+            outputs = F.softmax(outputs, dim=1) # [B, 2, 256, 256]
+            l1_loss = l1_criterion(outputs[:,1,:], masks) # [B, 1, 256, 256]
             focal_loss = focal_criterion(outputs, masks)
             loss = (l1_weight * l1_loss) + (focal_weight * focal_loss)
 
@@ -116,7 +117,6 @@ def training(model, trainloader, validloader, criterion, optimizer, scheduler, n
                             rate       = inputs.size(0) / batch_time_m.val,
                             rate_avg   = inputs.size(0) / batch_time_m.avg,
                             data_time  = data_time_m))
-
 
             if ((step+1) % eval_interval == 0 and step != 0) or (step+1) == num_training_steps:
                 eval_metrics = evaluate(
@@ -190,8 +190,9 @@ def evaluate(model, dataloader, criterion, log_interval, metrics: list, device: 
             inputs, masks, targets = inputs.to(device), masks.to(device), targets.to(device)
 
             # predict
-            outputs = model(inputs)
-            outputs = F.softmax(outputs, dim=1)
+            outputs = model(inputs)             # [B, 2, 256, 256]
+            outputs = F.softmax(outputs, dim=1) # [B, 2, 256, 256]
+            # Paper 4.2: the mean of the scores of the top 100 most abnormal pixel points in the image is used as the anomaly score at the image-level
             anomaly_score = torch.topk(torch.flatten(outputs[:,1,:], start_dim=1), 100)[0].mean(dim=1)
 
             # update metrics

@@ -88,14 +88,14 @@ class OrtInference(Inference):
         self.infer(x)
 
 
-    def infer(self, image: np.ndarray) -> np.ndarray:
+    def infer(self, image: np.ndarray) -> tuple[np.ndarray, float]:
         """推理单张图片
 
         Args:
             image (np.ndarray): 图片
 
         Returns:
-            np.ndarray: hotmap
+            tuple[np.ndarray, float]: hotmap, score
         """
         # 1.保存图片高宽
         image_height, image_width = image.shape[0], image.shape[1]
@@ -115,10 +115,14 @@ class OrtInference(Inference):
         y = y[0][1]                         # [H, W] 取出1,代表有问题的层
         y = y.squeeze()                     # [H, W]
 
-        # 5.还原到原图尺寸
+        # 5.得到分数
+        # Paper 4.2: the mean of the scores of the top 100 most abnormal pixel points in the image is used as the anomaly score at the image-level
+        score = np.flip(np.sort(y.reshape(-1), axis=0), axis=0)[:100].mean()
+
+        # 6.还原到原图尺寸
         y = cv2.resize(y, (image_width, image_height))
 
-        return y
+        return y, score
 
 
 def single(json_path: str, onnx_path: str, image_path: str, save_path: str, mode: str="cpu") -> None:
@@ -139,16 +143,16 @@ def single(json_path: str, onnx_path: str, image_path: str, save_path: str, mode
 
     # 3.推理
     start = time.time()
-    anomaly_map = inference.infer(image)    # [900, 900]
+    anomaly_map, score = inference.infer(image)    # [900, 900] [1]
+    print(score)
 
     # 4.生成mask,mask边缘,热力图叠加原图
     mask, mask_outline, superimposed_map = gen_images(image, anomaly_map)
     end = time.time()
-
     print("infer time:", end - start)
 
     # 5.保存图片
-    save_image(save_path, image, mask, mask_outline, superimposed_map)
+    save_image(save_path, image, mask, mask_outline, superimposed_map, score)
 
 
 def multi(json_path: str, onnx_path: str, image_dir: str, save_dir: str, mode: str="cpu") -> None:
@@ -187,7 +191,8 @@ def multi(json_path: str, onnx_path: str, image_dir: str, save_dir: str, mode: s
 
         # 5.推理
         start = time.time()
-        anomaly_map = inference.infer(image)    # [900, 900]
+        anomaly_map, score = inference.infer(image)    # [900, 900] [1]
+        print(score)
 
         # 6.生成mask,mask边缘,热力图叠加原图
         mask, mask_outline, superimposed_map = gen_images(image, anomaly_map)
@@ -199,7 +204,7 @@ def multi(json_path: str, onnx_path: str, image_dir: str, save_dir: str, mode: s
         if save_dir is not None:
             # 7.保存图片
             save_path = os.path.join(save_dir, img)
-            save_image(save_path, image, mask, mask_outline, superimposed_map)
+            save_image(save_path, image, mask, mask_outline, superimposed_map, score)
 
     print("avg infer time: ", mean(infer_times))
 

@@ -5,6 +5,7 @@ import torch.nn as nn
 import math
 import torch.nn.functional as F
 
+
 class h_sigmoid(nn.Module):
     def __init__(self, inplace=True):
         super(h_sigmoid, self).__init__()
@@ -12,6 +13,7 @@ class h_sigmoid(nn.Module):
 
     def forward(self, x):
         return self.relu(x + 3) / 6
+
 
 class h_swish(nn.Module):
     def __init__(self, inplace=True):
@@ -37,25 +39,24 @@ class CoordAtt(nn.Module):
         self.conv_h = nn.Conv2d(mip, oup, kernel_size=1, stride=1, padding=0)
         self.conv_w = nn.Conv2d(mip, oup, kernel_size=1, stride=1, padding=0)
 
-
     def forward(self, x):
         identity = x
 
-        n,c,h,w = x.size()
-        x_h = self.pool_h(x)
-        x_w = self.pool_w(x).permute(0, 1, 3, 2)
+        n,c,h,w = x.size()                       # [B, 128, 64, 64]
+        x_h = self.pool_h(x)                     # [B, 128, 64, 64] -> [B, 128, 64, 1]
+        x_w = self.pool_w(x).permute(0, 1, 3, 2) # [B, 128, 64, 64] -> [B, 128, 1, 64] -> [B, 128, 64, 1]
 
-        y = torch.cat([x_h, x_w], dim=2)
-        y = self.conv1(y)
+        y = torch.cat([x_h, x_w], dim=2)         # [B, 128, 64, 1] cat [B, 128, 64, 1] -> [B, 128, 128, 1]
+        y = self.conv1(y)                        # [B, 128, 128, 1] -> [B, 8, 128, 1]
         y = self.bn1(y)
         y = self.act(y)
 
-        x_h, x_w = torch.split(y, [h, w], dim=2)
-        x_w = x_w.permute(0, 1, 3, 2)
+        x_h, x_w = torch.split(y, [h, w], dim=2) # [B, 8, 128, 1] -> [B, 8, 64, 1] + [B, 8, 64, 1]
+        x_w = x_w.permute(0, 1, 3, 2)            # [B, 8, 64, 1] -> [B, 8, 1, 64]
 
-        a_h = self.conv_h(x_h).sigmoid()
-        a_w = self.conv_w(x_w).sigmoid()
+        a_h = self.conv_h(x_h).sigmoid()         # [B, 8, 64, 1] -> [B, 128, 64, 1]
+        a_w = self.conv_w(x_w).sigmoid()         # [B, 8, 1, 64] -> [B, 128, 1, 64]
 
-        out = identity * a_w * a_h
+        out = identity * a_w * a_h               # [B, 128, 64, 64] * [B, 128, 64, 1] * [B, 128, 1, 64] = [B, 128, 64, 64]
 
         return out

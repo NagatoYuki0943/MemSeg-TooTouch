@@ -4,7 +4,7 @@ SEED: 42
 DATASET:
   datadir: './datasets'
   texture_source_dir: './datasets/dtd/images'
-  target: 'custom'
+  target: 'custom' # datadir中指定的文件夹目录,里面有train/val文件夹
   resize: !!python/tuple
     - 256 # height
     - 256 # width
@@ -21,7 +21,7 @@ DATALOADER:
   num_workers: 0
 
 MEMORYBANK:
-  nb_memory_sample: 30
+  nb_memory_sample: 30 # memory_bank中存储正常图片数量
 
 MODEL:
   feature_extractor_name: 'resnet18'
