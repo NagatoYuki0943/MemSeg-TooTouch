@@ -184,6 +184,6 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     # config
-    cfg = yaml.load(open(args.yaml_config,'r'), Loader=yaml.FullLoader)
+    cfg = yaml.load(open(args.yaml_config,'r', encoding="utf-8"), Loader=yaml.FullLoader)
 
     run(cfg)
